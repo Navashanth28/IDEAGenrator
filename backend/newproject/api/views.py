@@ -26,7 +26,7 @@ def process_survey(request):
     user_input = request.data  # Get data from React frontend
     
     # Create a prompt for Gemini
-    prompt = f"Based on the user's survey responses, provide insights:\n{user_input}"
+    prompt = f"You are an AI Project consultant helping students with their final year projects. Based on the dataset provided by the user, create a comprehensive and detailed project plan tailored to their specific project. The plan should cover key stages of project development, including:Idea Validation: How to validate the project concept, define the problem, and ensure its feasibility.Market Research: Steps for conducting market research to understand the target audience, competitors, and demand.Product Development: The process for designing, developing, and testing the solution or prototype.Project Milestones and Deliverables: Breakdown of essential tasks, milestones, and deliverables for each stage of the project.Timelines and Resource Allocation: Define realistic timelines and resource needs (team members, tools, etc.) for each stage.Ensure that the project plan is actionable, comprehensive, and follows best practices in the project ecosystem. The plan should be clear enough to guide the student through each stage of the project while allowing flexibility for adjustments based on project scope or unforeseen challenges\n{user_input}"
 
     try:
         # Call Gemini 2.0 API
