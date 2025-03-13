@@ -1,0 +1,19 @@
+.output-container {
+  max-width: 900px;
+  margin: auto;
+  background: #fff;
+  padding: 20px 30px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.output-title {
+  text-align: center;
+  color: #4A90E2;
+}
+
+.output-content {
+  margin-top: 20px;
+  font-size: 16px;
+  color: #333;
+}
