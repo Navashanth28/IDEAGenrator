@@ -8,7 +8,7 @@ const OutputPage = () => {
   return (
     <div className="output-container">
       <h1 className="output-title">Survey Output</h1>
-      <p className="output-content">{response}</p>
+      <div className="output-content" dangerouslySetInnerHTML={{ __html: response }} />
     </div>
   );
 };
