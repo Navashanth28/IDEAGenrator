@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-sgn0*zi4iy)zd6cb$-v9lbok86b-2*lqsxp=9+t@0a)!^9c^$e
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -72,6 +72,31 @@ TEMPLATES = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # Allow frontend to access the backend
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite default development port
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'OPTIONS',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 WSGI_APPLICATION = 'newproject.wsgi.application'
 

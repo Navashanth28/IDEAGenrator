@@ -15,8 +15,11 @@ const SurveyForm = () => {
     webBackend: [],
     webHosting: [],
     webDatabase: [],
-    securityFeatures: [],
+    securityFeatures: []
   });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const navigate = useNavigate();
 
@@ -35,19 +38,64 @@ const SurveyForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    // Enhanced validation
+    const requiredFields = {
+      industry: "Industry",
+      targetAudience: "Target Audience",
+      technology: "Technology"
+    };
+
+    const missingFields = Object.entries(requiredFields)
+      .filter(([key, label]) => {
+        if (Array.isArray(formData[key])) {
+          return formData[key].length === 0;
+        }
+        return !formData[key];
+      })
+      .map(([_, label]) => label);
+
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(", ")}`);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await axios.post("http://127.0.0.1:8000/api/process-survey/", formData);
-      console.log(response.data);
-      navigate("/output", { state: { response: response.data.response } });
+      console.log("Submitting form data:", formData);
+      const response = await axios.post("http://127.0.0.1:8000/api/survey/", formData, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data && response.data.response) {
+        console.log("Server response:", response.data);
+        navigate("/output", { state: { response: response.data.response } });
+      } else {
+        throw new Error("Invalid response format from server");
+      }
     } catch (error) {
-      console.error("Error submitting survey:", error);
-      alert(`Error submitting survey: ${error.response?.data?.error || error.message}`);
+      console.error("Detailed error:", error);
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          "An unexpected error occurred";
+      setError(`Error: ${errorMessage}`);
+      
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGetActivity = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:8000/api/get-activity/");
+      const response = await axios.get("http://127.0.0.1:8000/api/activity/");
       console.log(response.data);
       alert(`Last activity: ${response.data.response}`);
     } catch (error) {
@@ -58,6 +106,32 @@ const SurveyForm = () => {
 
   return (
     <div className="survey-container">
+      {error && (
+        <div className="error-message" style={{
+          padding: '10px',
+          margin: '10px 0',
+          backgroundColor: '#ffebee',
+          color: '#c62828',
+          borderRadius: '4px',
+          border: '1px solid #ef9a9a'
+        }}>
+          {error}
+        </div>
+      )}
+      {loading && (
+        <div className="loading" style={{
+          padding: '10px',
+          margin: '10px 0',
+          backgroundColor: '#e3f2fd',
+          color: '#1976d2',
+          borderRadius: '4px'
+        }}>
+          Processing your survey...
+        </div>
+      )}
+      <div className="nav-buttons">
+        <button onClick={() => navigate('/history')} className="survey-button">View History</button>
+      </div>
       <h1 className="survey-title">Project & Technology Survey</h1>
       <form onSubmit={handleSubmit}>
         <fieldset className="survey-fieldset">
@@ -122,7 +196,7 @@ const SurveyForm = () => {
           </fieldset>
         ))}
 
-        <button type="submit" className="survey-button">Submit Survey</button>
+        <button  type="submit" className="survey-button">Submit Survey</button>
       </form>
       <button onClick={handleGetActivity} className="survey-button">Get Last Activity</button>
     </div>

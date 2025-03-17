@@ -50,4 +50,13 @@ body {
   .survey-button:hover {
     background-color: #357ABD;
   }
+
+  .nav-buttons {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
   
+  .nav-buttons .survey-button {
+    margin: 0 10px;
+  }
