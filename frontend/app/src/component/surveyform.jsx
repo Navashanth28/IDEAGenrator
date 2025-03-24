@@ -41,7 +41,7 @@ const SurveyForm = () => {
     setLoading(true);
     setError(null);
 
-    // Enhanced validation
+    // Validate required fields
     const requiredFields = {
       industry: "Industry",
       targetAudience: "Target Audience",
@@ -63,9 +63,20 @@ const SurveyForm = () => {
       return;
     }
 
+    // Ensure arrays are initialized
+    const dataToSend = {
+      ...formData,
+      technology: formData.technology || [],
+      webFrontend: formData.webFrontend || [],
+      webBackend: formData.webBackend || [],
+      webHosting: formData.webHosting || [],
+      webDatabase: formData.webDatabase || [],
+      securityFeatures: formData.securityFeatures || []
+    };
+
     try {
-      console.log("Submitting form data:", formData);
-      const response = await axios.post("http://127.0.0.1:8000/api/survey/", formData, {
+      console.log("Submitting form data:", dataToSend);
+      const response = await axios.post("http://127.0.0.1:8000/api/survey/", dataToSend, {
         headers: {
           'Content-Type': 'application/json'
         }
@@ -78,16 +89,26 @@ const SurveyForm = () => {
         throw new Error("Invalid response format from server");
       }
     } catch (error) {
-      console.error("Detailed error:", error);
-      const errorMessage = error.response?.data?.error || 
-                          error.message || 
-                          "An unexpected error occurred";
-      setError(`Error: ${errorMessage}`);
+      console.error("Error details:", error);
+      
+      let errorMessage = "An unexpected error occurred";
       
       if (error.response) {
         console.error("Response data:", error.response.data);
         console.error("Response status:", error.response.status);
+        
+        // Extract error message from response
+        errorMessage = error.response.data?.error || 
+                      error.response.data?.message || 
+                      error.response.statusText || 
+                      errorMessage;
+      } else if (error.request) {
+        errorMessage = "No response received from server. Please check your connection.";
+      } else {
+        errorMessage = error.message;
       }
+      
+      setError(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -96,11 +117,17 @@ const SurveyForm = () => {
   const handleGetActivity = async () => {
     try {
       const response = await axios.get("http://127.0.0.1:8000/api/activity/");
-      console.log(response.data);
-      alert(`Last activity: ${response.data.response}`);
+      console.log("Activity response:", response.data);
+      
+      if (response.data?.response) {
+        alert(response.data.response);
+      } else {
+        alert("No activity data available");
+      }
     } catch (error) {
       console.error("Error fetching activity:", error);
-      alert("Error fetching activity");
+      const errorMessage = error.response?.data?.error || "Error fetching activity";
+      alert(errorMessage);
     }
   };
 

@@ -44,10 +44,12 @@ from .models import Survey
 @api_view(["POST"])
 def process_survey(request):
     try:
-        user_input = request.data
-        logger.info(f"Received survey data: {json.dumps(user_input)}")
+        # Log the raw request data
+        logger.info("Raw request data received: %s", request.data)
         
+        user_input = request.data
         if not user_input:
+            logger.error("Empty request data received")
             return Response(
                 {"error": "No input data provided"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -58,35 +60,45 @@ def process_survey(request):
         missing_fields = [field for field in required_fields if not user_input.get(field)]
         
         if missing_fields:
+            logger.error("Missing required fields: %s", missing_fields)
             return Response(
                 {"error": f"Missing required fields: {', '.join(missing_fields)}"}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Initialize empty lists for optional fields
+        survey_data = {
+            "industry": user_input.get("industry"),
+            "industry_other": user_input.get("industryOther") or "",
+            "target_audience": user_input.get("targetAudience"),
+            "technology": user_input.get("technology") or [],
+            "sub_technology": user_input.get("subTechnology") or "",
+            "platform": user_input.get("platform") or "",
+            "web_frontend": user_input.get("webFrontend") or [],
+            "web_backend": user_input.get("webBackend") or [],
+            "web_hosting": user_input.get("webHosting") or [],
+            "web_database": user_input.get("webDatabase") or [],
+            "security_features": user_input.get("securityFeatures") or []
+        }
+
+        # Validate data types
+        list_fields = ["technology", "web_frontend", "web_backend", "web_hosting", "web_database", "security_features"]
+        for field in list_fields:
+            if not isinstance(survey_data[field], list):
+                logger.error("Invalid data type for field %s: expected list, got %s", field, type(survey_data[field]))
+                return Response(
+                    {"error": f"Invalid data type for {field}: must be a list"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         try:
-            # Ensure lists are properly initialized
-            survey_data = {
-                "industry": user_input.get("industry"),
-                "industry_other": user_input.get("industryOther", ""),
-                "target_audience": user_input.get("targetAudience"),
-                "technology": user_input.get("technology", []),
-                "sub_technology": user_input.get("subTechnology", ""),
-                "platform": user_input.get("platform", ""),
-                "web_frontend": user_input.get("webFrontend", []),
-                "web_backend": user_input.get("webBackend", []),
-                "web_hosting": user_input.get("webHosting", []),
-                "web_database": user_input.get("webDatabase", []),
-                "security_features": user_input.get("securityFeatures", [])
-            }
-            
-            logger.info(f"Creating survey with data: {json.dumps(survey_data)}")
+            logger.info("Creating survey with data: %s", survey_data)
             survey = Survey.objects.create(**survey_data)
-            logger.info(f"Survey created successfully with ID: {survey.id}")
-            
+            logger.info("Survey created successfully with ID: %s", survey.id)
         except Exception as db_error:
-            logger.error(f"Database error details: {str(db_error)}", exc_info=True)
+            logger.error("Database error: %s", str(db_error), exc_info=True)
             return Response(
-                {"error": f"Failed to save survey data: {str(db_error)}"}, 
+                {"error": f"Database error: {str(db_error)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -129,34 +141,96 @@ def process_survey(request):
             backend = ", ".join(user_input.get("webBackend", []))
             database = ", ".join(user_input.get("webDatabase", []))
             
-            prompt = f"""Create a project plan for a {user_input.get('industry')} project with the following details:
-            - Target Audience: {user_input.get('targetAudience')}
-            - Core Technologies: {technologies}
-            - Frontend: {frontend}
-            - Backend: {backend}
-            - Database: {database}
+            prompt = f"""Create a comprehensive project documentation for a {user_input.get('industry')} project. Follow this EXACT structure and include ALL sections:
 
-            Please provide:
-            1. Project Overview
-            2. Technical Architecture
-            3. Development Phases
-            4. Timeline Estimation
-            5. Key Features
-            6. Testing Strategy
+1. Abstract (40 lines)
+2. Table of Contents
+3. Introduction (30 lines)
+4. Project Overview (35 lines)
+5. Literature Review
+6. Problem Statement & Motivation
+7. Aim and Objectives
+8. Methodology
+9. Functional & Non-Functional Requirements
+10. System Architecture
+11. Software & Hardware Requirements
+12. Model Description
+- Detailed explanation of model selection
+- Working mechanism analysis
+- Justification for model choice
+13. Input and Output Design
+- Input parameters specification
+- Data flow description
+- Expected output formats
+14. Testing and Implementation
+- Testing strategies
+- Implementation phases
+- Validation steps
+15. Deployment Strategy
+- Deployment scenarios
+- Implementation steps
+- Resource requirements
+16. Maintenance and Future Enhancements
+- Maintenance procedures
+- Potential improvements
+- Scalability considerations
+17. Conclusion (30 lines)
+18. References
 
-            Format with clear headers and bullet points.
-            """
+Important: 
+- Each section MUST begin with its corresponding heading (e.g., "## Model Description")
+- Include ALL sections listed above
+- Maintain consistent formatting
+- Use proper section breaks
+- Ensure comprehensive coverage of each topic
+- Keep the specified line counts where indicated
 
-            if DEBUG_MODE:
-                logger.info("Sending request to Gemini API...")
-                logger.info(f"Prompt: {prompt}")
+Technical Specifications:
+Industry: {user_input.get('industry')}
+Technologies: {technologies}
+Frontend: {frontend}
+Backend: {backend}
+Database: {database}
 
+Please provide detailed content for each section, ensuring no sections are omitted."""
+
+            # Update generation config for longer output
             generation_config = {
-                "temperature": 0.7,
-                "top_p": 0.8,
+                "temperature": 0.9,  # Increased for more creative responses
+                "top_p": 0.9,
                 "top_k": 40,
-                "max_output_tokens": 2048,
+                "max_output_tokens": 8192,  # Increased token limit
             }
+
+            # Validate response sections
+            def validate_response(response_text):
+                required_sections = [
+                    "## Model Description",
+                    "## Input and Output Design",
+                    "## Testing and Implementation",
+                    "## Deployment Strategy",
+                    "## Maintenance and Future Enhancements",
+                    "## Conclusion",
+                    "## References"
+                ]
+                
+                missing_sections = []
+                for section in required_sections:
+                    if section not in response_text:
+                        missing_sections.append(section)
+                
+                if missing_sections:
+                    logger.warning(f"Missing sections in response: {missing_sections}")
+                    # Generate missing sections separately
+                    additional_prompt = f"Please generate content for these missing sections: {', '.join(missing_sections)}"
+                    try:
+                        additional_response = model.generate_content(additional_prompt)
+                        if additional_response and hasattr(additional_response, 'text'):
+                            return response_text + "\n\n" + additional_response.text
+                    except Exception as e:
+                        logger.error(f"Error generating missing sections: {str(e)}")
+                
+                return response_text
 
             try:
                 response = model.generate_content(
@@ -164,45 +238,26 @@ def process_survey(request):
                     generation_config=generation_config
                 )
                 logger.info("Successfully generated content from Gemini API")
+                
+                # Handle the response and validate sections
+                if response and hasattr(response, 'text'):
+                    main_content = response.text
+                    validated_content = validate_response(main_content)
+                    formatted_output = validated_content.replace('\n', '<br>')
+                    
+                    return Response({
+                        "response": formatted_output,
+                        "timestamp": datetime.now().isoformat()
+                    }, status=status.HTTP_200_OK)
+                else:
+                    raise ValueError("Invalid response format from Gemini API")
+                
             except Exception as generate_error:
                 logger.error(f"Content generation failed: {str(generate_error)}")
                 return Response(
                     {"error": f"Content generation failed: {str(generate_error)}"}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
-            if DEBUG_MODE:
-                logger.info("Received response from Gemini API")
-                
-            if not response:
-                logger.error("Empty response from Gemini API")
-                return Response(
-                    {"error": "No response from AI model"}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-            if not hasattr(response, 'text'):
-                logger.error(f"Unexpected response format: {response}")
-                return Response(
-                    {"error": "Invalid response format from AI model"}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-            gemini_output = response.text.strip()
-            if not gemini_output:
-                logger.error("Empty text in Gemini response")
-                return Response(
-                    {"error": "Empty response from AI model"}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-            # Format the output
-            formatted_output = gemini_output.replace('\n', '<br>')
-            
-            return Response({
-                "response": formatted_output,
-                "timestamp": datetime.now().isoformat()
-            }, status=status.HTTP_200_OK)
 
         except Exception as ai_error:
             logger.error(f"AI model error: {str(ai_error)}", exc_info=True)
@@ -220,15 +275,34 @@ def process_survey(request):
 
 @api_view(["GET"])
 def get_activity(request):
-    if last_gemini_output["content"]:
-        return Response({
-            "response": last_gemini_output["content"],
-            "timestamp": last_gemini_output["timestamp"]
-        }, status=status.HTTP_200_OK)
-    return Response(
-        {"error": "No activity found"}, 
-        status=status.HTTP_404_NOT_FOUND
-    )
+    try:
+        # Get the most recent survey
+        latest_survey = Survey.objects.order_by('-created_at').first()
+        
+        if latest_survey:
+            # Format the response similar to process_survey
+            activity_data = {
+                'industry': latest_survey.industry,
+                'target_audience': latest_survey.target_audience,
+                'technology': latest_survey.technology,
+                'created_at': latest_survey.created_at.isoformat()
+            }
+            return Response({
+                "response": f"Latest activity: {activity_data}",
+                "timestamp": latest_survey.created_at.isoformat()
+            }, status=status.HTTP_200_OK)
+        
+        return Response(
+            {"error": "No surveys found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching activity: {str(e)}")
+        return Response(
+            {"error": f"Error fetching activity: {str(e)}"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @api_view(["GET"])
 def get_survey_history(request):
